@@ -1,11 +1,26 @@
 const { resolve } = require("path");
 const { rejects } = require("assert");
 
-var five = require("johnny-five"), board, buttonMeasureTemp;
+let five = require("johnny-five"), board, buttonMeasureTemp;
+let requestStack = [];
+let date = new Date();
+
+class requestNode{
+    constructor(time){
+        this.time = time;
+    }
+}
+
 const fs = require('fs');
 const XMLHttpRequest = require("xmlhttprequest").XMLHttpRequest;
 const { runInContext } = require("vm");
 const { request } = require("http");
+
+let timeout = new Promise( (resolve, reject)=>{
+    let wait = setTimeout(() => {
+        resolve('...10000 ms past\n');
+      }, 10000)
+});
 
 let initializeAndRecord = async (temp) => {
     temp = await measureTemp();
@@ -18,6 +33,7 @@ let printAndSave = async () => {
     console.log("Values are obtained, printing and saving!");
     printData(temp, tempSite);
     writeData(temp, tempSite);
+    requestStack.pop();
 }
 
 runApp();
@@ -26,17 +42,30 @@ async function runApp(){
     console.log("Started running the application...");
     await initializeBoard();
     buttonMeasureTemp.on("down", async function() {  
-        printAndSave();
+
+        let newRequest = new requestNode(date.getHours() + ":" + date.getMinutes());
+        requestStack.push(newRequest);
+
+        console.log(requestStack); // WUT
+        let lollygagging = await timeout;
+        console.log(lollygagging);
+
+        if (requestStack === undefined || requestStack.length == 0){
+            console.log("All requests are either completed or cancelled!")
+        }
+        else{
+            printAndSave();
+        }
     });
     buttonMeasureTemp.on("hold", async function() {  
-        console.log("Hold detected.")
         abortFunction();
     });
 }
 
 async function abortFunction(){
     console.log("Aborting!");
-    request.abort();
+    requestStack.pop();
+    console.log(requestStack); // WUT
 }
 
 async function initializeBoard() {
